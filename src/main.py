@@ -14,6 +14,7 @@ from resource_path import resource_path
 from sc_logging import logger, log_file_path
 from http_server import stop_http_server
 
+
 def show_startup_error(error: Exception) -> None:
     message = (
         "ScoreSight hit an error during startup and needs to close.\n\n"
