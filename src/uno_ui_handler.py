@@ -29,22 +29,29 @@ class UNOUIHandler:
         self.unoUpdater = UNOAPI(
             self.ui.lineEdit_unoUrl.text(),
             {},
+            {},
         )
         self.globalSettingsChanged("uno_url", self.ui.lineEdit_unoUrl.text())
         self.unoMappingChanged(True)
 
     def unoMappingChanged(self, shouldUpdateStorage: bool):
         mapping = {}
+        formatting = {}
         model = self.ui.tableView_unoMapping.model()
         if isinstance(model, QStandardItemModel):
             for i in range(model.rowCount()):
                 item = model.item(i, 0)
                 value = model.item(i, 1)
+                formatting_value = model.item(i, 2)
                 if item and value:
                     mapping[item.text()] = value.text()
+                if item and formatting_value and formatting_value.text():
+                    formatting[item.text()] = formatting_value.text()
             if shouldUpdateStorage:
                 self.globalSettingsChanged("uno_mapping", mapping)
+                self.globalSettingsChanged("uno_formatters", formatting)
             self.unoUpdater.set_field_mapping(mapping)
+            self.unoUpdater.set_field_formatters(formatting)
         else:
             logger.error("unoMappingChanged: model is not a QStandardItemModel")
 
@@ -64,12 +71,16 @@ class UNOUIHandler:
         self.unoUpdater = UNOAPI(
             self.ui.lineEdit_unoUrl.text(),
             {},
+            {},
         )
         # add standard item model to the tableView_unoMapping
         self.ui.tableView_unoMapping.setModel(QStandardItemModel())
         mapping = fetch_data("scoresight.json", "uno_mapping", {})
+        formatting = fetch_data("scoresight.json", "uno_formatters", {})
         if mapping:
             self.unoUpdater.set_field_mapping(mapping)
+        if formatting:
+            self.unoUpdater.set_field_formatters(formatting)
 
         self.ui.tableView_unoMapping.model().dataChanged.connect(self.unoMappingChanged)
 
@@ -117,8 +128,11 @@ class UNOUIHandler:
 
     def updateUNOTable(self, detectionTargets: list[TextDetectionTarget]):
         mapping_storage = fetch_data("scoresight.json", "uno_mapping")
+        formatting_storage = fetch_data("scoresight.json", "uno_formatters", {})
         model = QStandardItemModel()
         model.blockSignals(True)
+
+        model.setHorizontalHeaderLabels(["Detected Field", "UNO Command", "Format"])
 
         for box in detectionTargets:
             items = model.findItems(box.name, Qt.MatchFlag.MatchExactly)
@@ -140,6 +154,8 @@ class UNOUIHandler:
                 else:
                     new_item_value = box.name
             model.setItem(row, 1, QStandardItem(new_item_value))
+            format_value = formatting_storage.get(box.name, "")
+            model.setItem(row, 2, QStandardItem(format_value))
 
         for i in range(model.rowCount() - 1, -1, -1):
             item = model.item(i, 0)

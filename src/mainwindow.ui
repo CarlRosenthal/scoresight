@@ -1572,7 +1572,7 @@
            <item row="2" column="0">
             <widget class="QTableView" name="tableView_unoMapping">
              <attribute name="horizontalHeaderVisible">
-              <bool>false</bool>
+              <bool>true</bool>
              </attribute>
              <attribute name="horizontalHeaderStretchLastSection">
               <bool>true</bool>

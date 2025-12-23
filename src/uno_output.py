@@ -5,9 +5,10 @@ from storage import subscribe_to_data, fetch_data
 
 
 class UNOAPI:
-    def __init__(self, endpoint, field_mapping):
+    def __init__(self, endpoint, field_mapping, field_formatters=None):
         self.endpoint = endpoint
         self.field_mapping = field_mapping
+        self.field_formatters = field_formatters or {}
         self.running = False
         self.update_same = fetch_data("scoresight.json", "uno_send_same", False)
         subscribe_to_data("scoresight.json", "uno_send_same", self.set_update_same)
@@ -31,6 +32,10 @@ class UNOAPI:
         logger.debug(f"Setting UNO field mapping: {field_mapping}")
         self.field_mapping = field_mapping
 
+    def set_field_formatters(self, field_formatters):
+        logger.debug(f"Setting UNO field formatters: {field_formatters}")
+        self.field_formatters = field_formatters or {}
+
     def update_uno(self, detection: list[TextDetectionTargetWithResult]):
         if not self.running:
             return
@@ -46,7 +51,41 @@ class UNOAPI:
         for target in detection:
             if target.result_state in look_in and target.name in self.field_mapping:
                 uno_command = self.field_mapping[target.name]
-                self.send_uno_command(uno_command, target.result)
+                formatted_value = self.format_value(target.name, target.result)
+                self.send_uno_command(uno_command, formatted_value)
+
+    def format_value(self, name, value):
+        formatter = self.field_formatters.get(name)
+        if not formatter:
+            return value
+
+        try:
+            if isinstance(formatter, str) and formatter.strip().lower() == "seconds":
+                return self.to_seconds(value)
+
+            return formatter.replace("{value}", str(value))
+        except Exception as e:
+            logger.error(f"Failed to format UNO value for {name}: {e}")
+            return value
+
+    def to_seconds(self, value):
+        if isinstance(value, (int, float)):
+            return int(value)
+
+        time_str = str(value)
+        parts = time_str.split(":")
+
+        try:
+            if len(parts) == 3:
+                hours, minutes, seconds = [int(part) for part in parts]
+                return hours * 3600 + minutes * 60 + seconds
+            if len(parts) == 2:
+                minutes, seconds = [int(part) for part in parts]
+                return minutes * 60 + seconds
+            return int(float(time_str))
+        except ValueError:
+            logger.error(f"Could not parse time value '{value}' as seconds")
+            return value
 
     def send_uno_command(self, command, value):
         if not self.essentials:

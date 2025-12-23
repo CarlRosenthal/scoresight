@@ -816,7 +816,7 @@ class Ui_MainWindow(object):
 
         self.tableView_unoMapping = QTableView(self.tab_uno)
         self.tableView_unoMapping.setObjectName(u"tableView_unoMapping")
-        self.tableView_unoMapping.horizontalHeader().setVisible(False)
+        self.tableView_unoMapping.horizontalHeader().setVisible(True)
         self.tableView_unoMapping.horizontalHeader().setStretchLastSection(True)
 
         self.gridLayout_5.addWidget(self.tableView_unoMapping, 2, 0, 1, 1)
