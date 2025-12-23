@@ -1,5 +1,3 @@
-# ⚠️ Stalled ⚠️ This project is not under active development
-
 ## ScoreSight - Real-time OCR For Scoreboards, Apps, Games and more
 
 <div align="center">
