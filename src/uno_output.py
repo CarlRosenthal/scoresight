@@ -72,7 +72,9 @@ class UNOAPI:
                     template = formatter_text[5:].strip()
                     return value, self.render_json_template(template, value, command)
                 if formatter_text.startswith("{") and formatter_text.endswith("}"):
-                    return value, self.render_json_template(formatter_text, value, command)
+                    return value, self.render_json_template(
+                        formatter_text, value, command
+                    )
 
             if isinstance(formatter, str):
                 return formatter.replace("{value}", str(value)), None
