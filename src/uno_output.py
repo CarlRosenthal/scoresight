@@ -1,3 +1,4 @@
+import json
 import requests
 from text_detection_target import TextDetectionTargetWithResult
 from sc_logging import logger
@@ -51,22 +52,48 @@ class UNOAPI:
         for target in detection:
             if target.result_state in look_in and target.name in self.field_mapping:
                 uno_command = self.field_mapping[target.name]
-                formatted_value = self.format_value(target.name, target.result)
-                self.send_uno_command(uno_command, formatted_value)
+                formatted_value, payload_override = self.format_value(
+                    target.name, target.result, uno_command
+                )
+                self.send_uno_command(uno_command, formatted_value, payload_override)
 
-    def format_value(self, name, value):
+    def format_value(self, name, value, command):
         formatter = self.field_formatters.get(name)
         if not formatter:
-            return value
+            return value, None
 
         try:
             if isinstance(formatter, str) and formatter.strip().lower() == "seconds":
-                return self.to_seconds(value)
+                return self.to_seconds(value), None
 
-            return formatter.replace("{value}", str(value))
+            if isinstance(formatter, str):
+                formatter_text = formatter.strip()
+                if formatter_text.lower().startswith("json:"):
+                    template = formatter_text[5:].strip()
+                    return value, self.render_json_template(template, value, command)
+                if formatter_text.startswith("{") and formatter_text.endswith("}"):
+                    return value, self.render_json_template(
+                        formatter_text, value, command
+                    )
+
+            if isinstance(formatter, str):
+                return formatter.replace("{value}", str(value)), None
+            return value, None
         except Exception as e:
             logger.error(f"Failed to format UNO value for {name}: {e}")
-            return value
+            return value, None
+
+    def render_json_template(self, template, value, command):
+        replacements = {
+            "{value}": str(value),
+            "{value_seconds}": str(self.to_seconds(value)),
+            "{value_json}": json.dumps(value),
+            "{command}": str(command),
+        }
+        rendered = template
+        for key, replacement in replacements.items():
+            rendered = rendered.replace(key, replacement)
+        return json.loads(rendered)
 
     def to_seconds(self, value):
         if isinstance(value, (int, float)):
@@ -87,8 +114,10 @@ class UNOAPI:
             logger.error(f"Could not parse time value '{value}' as seconds")
             return value
 
-    def send_uno_command(self, command, value):
-        if not self.essentials:
+    def send_uno_command(self, command, value, payload_override=None):
+        if payload_override is not None:
+            payload = payload_override
+        elif not self.essentials:
             payload = {"command": command, "value": value}
         else:
             payload = {
